@@ -1,0 +1,1016 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1d6646" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0c1712" media="(prefers-color-scheme: dark)">
+<meta name="description" content="Pointtæller til Amerikano for fire spillere.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Amerikano">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<title>Amerikano Pointtæller</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one narrow column like a scorepad on the card table — menu, player rows with their own steppers, round log, and a stats ledger. */
+:root{
+  --bg:#edf1ee; --surface:#ffffff; --sunk:#e2e9e4; --ink:#13241b; --muted:#56665e; --line:#d1dbd5; --axis:#a9b8af;
+  --felt:#1d6646; --felt-ink:#f4fbf7; --felt-soft:#cfe5d7;
+  --pos:#1b7547; --neg:#b3332a; --suit-red:#c0362c; --suit-black:#13241b;
+  --c0:#2a78d6; --c1:#eb6834; --c2:#1baf7a; --c3:#eda100;
+  --font-display:"Bricolage Grotesque","Avenir Next","Segoe UI",system-ui,sans-serif;
+  --font-body:"Figtree","Helvetica Neue","Segoe UI",system-ui,sans-serif;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0c1712; --surface:#14241c; --sunk:#0f1d16; --ink:#e6eee8; --muted:#93a69b; --line:#25392f; --axis:#46604f;
+    --felt:#3fa373; --felt-ink:#04120b; --felt-soft:#1b3a2b;
+    --pos:#5ccb90; --neg:#f07a6d; --suit-red:#f07a6d; --suit-black:#e6eee8;
+    --c0:#3987e5; --c1:#d95926; --c2:#199e70; --c3:#c98500;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0c1712; --surface:#14241c; --sunk:#0f1d16; --ink:#e6eee8; --muted:#93a69b; --line:#25392f; --axis:#46604f;
+  --felt:#3fa373; --felt-ink:#04120b; --felt-soft:#1b3a2b;
+  --pos:#5ccb90; --neg:#f07a6d; --suit-red:#f07a6d; --suit-black:#e6eee8;
+  --c0:#3987e5; --c1:#d95926; --c2:#199e70; --c3:#c98500;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:var(--font-body); font-size:16px; line-height:1.45;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+  -webkit-tap-highlight-color:transparent;
+}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--felt);outline-offset:2px}
+.wrap{max-width:34rem;margin:0 auto;padding-block:20px 56px}
+section{display:flex;flex-direction:column;gap:20px}
+h1,h2{font-family:var(--font-display);margin:0;text-wrap:balance;letter-spacing:-0.02em;line-height:1.05}
+h1{font-size:clamp(2.6rem,12vw,3.6rem);font-weight:800}
+h1.screen-title{font-size:2.3rem}
+h2{font-size:1.25rem;font-weight:700}
+p{margin:0}
+.lede{color:var(--muted);font-size:1.05rem;max-width:36ch;margin-top:10px}
+.eyebrow{font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.suits{letter-spacing:.12em;font-size:.95rem;text-transform:none}
+.suit{line-height:1}
+.suit.red{color:var(--suit-red)}
+.suit.black{color:var(--suit-black)}
+.nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.hint{font-size:.85rem;color:var(--muted)}
+.status{min-height:1.4em;font-size:.92rem;font-weight:600;color:var(--pos)}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:-10px}
+.back{display:inline-flex;align-items:center;gap:6px;background:none;border:0;padding:8px 12px 8px 0;font-weight:700;color:var(--ink);cursor:pointer;touch-action:manipulation}
+.topbar .eyebrow{margin:0}
+
+/* Buttons */
+.btn{font-weight:700;font-size:1.05rem;padding:14px 18px;min-height:52px;border-radius:12px;border:1px solid transparent;cursor:pointer;touch-action:manipulation;transition:background-color .15s,opacity .15s}
+.btn.primary{background:var(--felt);color:var(--felt-ink)}
+.btn.primary:disabled{background:var(--sunk);color:var(--muted);cursor:not-allowed}
+.btn.ghost{background:var(--surface);border-color:var(--line);color:var(--ink)}
+.btn.ghost:disabled{opacity:.45;cursor:not-allowed}
+.btn.outline{background:transparent;border:2px solid var(--ink);color:var(--ink)}
+.btn.danger-btn{background:var(--neg);color:var(--surface)}
+.link{background:none;border:0;padding:6px 0;color:var(--felt);font-weight:700;cursor:pointer;text-decoration:underline;text-underline-offset:3px;touch-action:manipulation}
+.link.danger{color:var(--neg)}
+.link:disabled{color:var(--muted);opacity:.5;text-decoration:none;cursor:default}
+.row{display:flex;flex-wrap:wrap;gap:10px}
+.row .btn{flex:1 1 11rem}
+.confirm{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px}
+.confirm p{font-weight:600}
+
+/* Menu */
+.continue-card{display:flex;flex-direction:column;gap:12px;width:100%;text-align:left;background:var(--felt);color:var(--felt-ink);border:0;border-radius:var(--r);padding:18px;cursor:pointer;touch-action:manipulation}
+.continue-card .suit{color:inherit}
+.cc-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.cc-title{font-family:var(--font-display);font-weight:800;font-size:1.6rem;letter-spacing:-0.01em;line-height:1.1}
+.cc-arrow{font-size:1.5rem;line-height:1}
+.cc-meta{font-size:.9rem;opacity:.88}
+.cc-scores{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 16px}
+.cc-p{display:flex;align-items:center;gap:6px;min-width:0;font-weight:600}
+.cc-t{margin-left:auto;font-family:var(--font-display);font-weight:800;font-size:1.15rem;font-variant-numeric:tabular-nums;padding:0 8px;border-radius:999px}
+.cc-p.lead .cc-t{background:var(--felt-ink);color:var(--felt)}
+.menu-actions{display:flex;flex-direction:column;gap:10px}
+.nav-row{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 18px;cursor:pointer;color:var(--ink);touch-action:manipulation}
+.nav-title{display:block;font-weight:700;font-size:1.05rem}
+.nav-sub{display:block;font-size:.88rem;color:var(--muted)}
+.nav-arrow{color:var(--muted);font-size:1.2rem}
+.facts{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+.facts li{padding:12px 14px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.facts li+li{border-left:1px solid var(--line)}
+.fact-num{font-family:var(--font-display);font-weight:800;font-size:1.6rem;line-height:1}
+.fact-label{font-size:.82rem;color:var(--muted);line-height:1.25}
+
+/* Setup */
+.names{display:flex;flex-direction:column;gap:10px}
+.name-field{display:flex;align-items:stretch;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.name-field:focus-within{border-color:var(--felt);box-shadow:0 0 0 3px var(--felt-soft)}
+.badge{width:52px;flex:none;display:grid;place-items:center;font-size:1.45rem;background:var(--sunk)}
+.name-field input{flex:1;min-width:0;border:0;background:transparent;padding:14px;font-size:1.1rem;outline:none}
+.name-field input::placeholder{color:var(--muted);opacity:.8}
+
+/* Game */
+.players{display:flex;flex-direction:column;gap:10px}
+.player{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 12px 12px 14px}
+.p-info{min-width:0;flex:1}
+.p-name{display:flex;align-items:center;gap:7px;font-weight:600;min-width:0}
+.p-name .suit{font-size:1.1rem}
+.lead-chip{flex:none;font-size:.66rem;text-transform:uppercase;letter-spacing:.08em;font-weight:700;background:var(--felt);color:var(--felt-ink);padding:2px 7px;border-radius:999px}
+.p-total{display:flex;align-items:baseline;gap:8px;margin-top:3px}
+.tot{font-family:var(--font-display);font-weight:800;font-size:2.15rem;line-height:1;letter-spacing:-0.02em}
+.proj{font-size:.95rem;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.proj.up{color:var(--pos)}
+.proj.down{color:var(--neg)}
+.stepper{display:flex;align-items:center;flex:none;background:var(--sunk);border-radius:12px;padding:4px;gap:2px}
+.step{width:46px;height:46px;border:0;border-radius:9px;background:var(--surface);color:var(--ink);font-size:1.55rem;font-weight:600;line-height:1;cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;box-shadow:0 1px 0 var(--line);transition:background-color .12s}
+.step:active{background:var(--felt-soft)}
+.step:disabled{opacity:.35;cursor:default}
+.val{width:3.3rem;height:46px;border:0;background:transparent;border-radius:9px;font-family:var(--font-display);font-weight:700;font-size:1.35rem;font-variant-numeric:tabular-nums;color:var(--muted);cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+.val.pos{color:var(--pos)}
+.val.neg{color:var(--neg)}
+.actions{display:grid;grid-template-columns:1fr auto;gap:10px}
+.block{display:flex;flex-direction:column;gap:10px}
+.block-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.finish{display:flex;flex-direction:column;gap:10px}
+
+/* Tables */
+.table-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:.95rem}
+th,td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+thead th{font-size:.8rem;font-weight:600;color:var(--muted);vertical-align:bottom}
+thead th:first-child{text-align:left}
+tbody th,tfoot th{text-align:left;font-weight:600;color:var(--muted)}
+tbody tr:last-child > *{border-bottom:0}
+.th-name{display:inline-flex;align-items:center;gap:4px;max-width:5rem}
+.th-name > span:last-child{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.cv{display:block;font-weight:700}
+.cv.pos{color:var(--pos)}
+.cv.neg{color:var(--neg)}
+.cv.zero{color:var(--muted)}
+.rt{display:block;font-size:.75rem;color:var(--muted)}
+.start-row td{color:var(--muted)}
+tfoot th,tfoot td{border-bottom:0;border-top:1px solid var(--line);background:var(--sunk)}
+tfoot td{font-family:var(--font-display);font-weight:800;font-size:1.15rem;color:var(--ink)}
+td.empty{text-align:left;color:var(--muted);white-space:normal}
+.ptable tbody th{color:var(--ink);max-width:9rem;overflow:hidden;text-overflow:ellipsis}
+.ptable td.lead{font-weight:800}
+
+/* Result */
+.standings{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.standings li{display:grid;grid-template-columns:2.2rem minmax(0,1fr) auto;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+.standings li.win{background:var(--felt);border-color:var(--felt);color:var(--felt-ink)}
+.standings li.win .suit,.standings li.win .r-diff{color:inherit}
+.standings li.win .r-diff{opacity:.85}
+.rank{font-family:var(--font-display);font-weight:800;font-size:1.4rem}
+.r-name{display:flex;align-items:center;gap:8px;font-weight:700;font-size:1.1rem;min-width:0}
+.r-score{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.r-tot{font-family:var(--font-display);font-weight:800;font-size:2rem;line-height:1}
+.r-diff{font-size:.8rem;color:var(--muted);white-space:nowrap}
+.result-stat{color:var(--muted);font-size:.95rem}
+.foot-links{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 20px}
+
+/* Chart */
+.chart-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 14px 10px;display:flex;flex-direction:column;gap:10px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.85rem}
+.lg-item{display:inline-flex;align-items:center;gap:6px;min-width:0}
+.key{display:inline-block;width:14px;height:3px;border-radius:2px;flex:none}
+.key.s0{background:var(--c0)} .key.s1{background:var(--c1)} .key.s2{background:var(--c2)} .key.s3{background:var(--c3)}
+.chart-box{position:relative}
+svg.chart{display:block;width:100%;height:auto;touch-action:pan-y;overflow:visible}
+svg.chart:focus-visible{outline:3px solid var(--felt);outline-offset:4px;border-radius:6px}
+.gl{stroke:var(--line);stroke-width:1}
+.gl.base{stroke:var(--axis)}
+.tick{fill:var(--muted);font-size:11px;font-family:var(--font-body);font-variant-numeric:tabular-nums}
+.ln{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.ln.s0{stroke:var(--c0)} .ln.s1{stroke:var(--c1)} .ln.s2{stroke:var(--c2)} .ln.s3{stroke:var(--c3)}
+.dot{stroke:var(--surface);stroke-width:2}
+.dot.s0{fill:var(--c0)} .dot.s1{fill:var(--c1)} .dot.s2{fill:var(--c2)} .dot.s3{fill:var(--c3)}
+.cl{stroke:var(--axis);stroke-width:1}
+.tip{position:absolute;top:4px;z-index:2;pointer-events:none;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;box-shadow:0 6px 18px rgba(0,0,0,.14);font-size:.82rem;min-width:8.5rem;max-width:13rem}
+.tip-h{color:var(--muted);font-weight:600;margin-bottom:4px}
+.tip-r{display:grid;grid-template-columns:14px auto minmax(0,1fr) auto;align-items:center;gap:6px;white-space:nowrap}
+.tip-r strong{color:var(--ink);font-variant-numeric:tabular-nums}
+.tip-n{color:var(--muted);overflow:hidden;text-overflow:ellipsis}
+.tip-d{color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* Stats */
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;min-width:0;display:flex;flex-direction:column;gap:2px}
+.tile-label{font-size:.82rem;color:var(--muted)}
+.tile-value{font-family:var(--font-display);font-weight:800;font-size:2rem;line-height:1.05;letter-spacing:-0.02em}
+.tile-sub{font-size:.85rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.games{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.game-row{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer;color:var(--ink);touch-action:manipulation}
+.gr-main{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.gr-when{font-size:.8rem;color:var(--muted)}
+.gr-win{font-weight:700}
+.gr-names{font-size:.85rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gr-arrow{color:var(--muted);flex:none}
+.empty-state{background:var(--surface);border:1px dashed var(--axis);border-radius:var(--r);padding:20px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+.es-title{font-family:var(--font-display);font-weight:700;color:var(--ink);font-size:1.2rem}
+
+@media (prefers-reduced-motion: reduce){
+  *{transition:none!important}
+}
+</style>
+</head>
+<body>
+<main class="wrap">
+
+  <!-- MENU -->
+  <section id="menu" aria-labelledby="menuTitle">
+    <div>
+      <p class="eyebrow"><span class="suits" aria-hidden="true"><span class="suit black">&#9824;&#xFE0E;</span><span class="suit red">&#9829;&#xFE0E;</span><span class="suit red">&#9830;&#xFE0E;</span><span class="suit black">&#9827;&#xFE0E;</span></span>Pointtæller</p>
+      <h1 id="menuTitle">Amerikano</h1>
+    </div>
+
+    <button id="continueCard" class="continue-card" type="button" hidden>
+      <span class="cc-head"><span class="cc-title">Fortsæt spil</span><span class="cc-arrow" aria-hidden="true">&rarr;</span></span>
+      <span class="cc-meta" id="ccMeta"></span>
+      <span class="cc-scores" id="ccScores"></span>
+    </button>
+
+    <div class="menu-actions">
+      <button id="newGameBtn" class="btn primary" type="button">Nyt spil</button>
+      <div id="newConfirm" class="confirm" hidden>
+        <p id="newConfirmText"></p>
+        <div class="row">
+          <button id="newSaveOld" class="btn primary" type="button">Afslut og gem i statistik</button>
+          <button id="newDropOld" class="btn ghost" type="button">Slet spillet</button>
+          <button id="newCancel" class="btn ghost" type="button">Annullér</button>
+        </div>
+      </div>
+      <button id="statsBtn" class="nav-row" type="button">
+        <span><span class="nav-title">Statistik</span><span class="nav-sub" id="statsSummary">Ingen afsluttede spil endnu</span></span>
+        <span class="nav-arrow" aria-hidden="true">&rarr;</span>
+      </button>
+    </div>
+    <p id="menuStatus" class="status" aria-live="polite"></p>
+
+    <ul class="facts">
+      <li><span class="fact-num">4</span><span class="fact-label">spillere</span></li>
+      <li><span class="fact-num">100</span><span class="fact-label">point hver ved start</span></li>
+      <li><span class="fact-num">&plusmn;13</span><span class="fact-label">point højst pr. runde</span></li>
+    </ul>
+  </section>
+
+  <!-- SETUP -->
+  <section id="setup" hidden aria-labelledby="setupTitle">
+    <div class="topbar"><button class="back" type="button" data-go="menu"><span aria-hidden="true">&larr;</span> Menu</button></div>
+    <div>
+      <h1 id="setupTitle" class="screen-title">Nyt spil</h1>
+      <p class="lede">Skriv de fire spilleres navne. Alle starter med 100 point.</p>
+    </div>
+    <form id="setupForm" class="names" autocomplete="off">
+      <label class="name-field" for="name0"><span class="badge suit black" aria-hidden="true">&#9824;&#xFE0E;</span><input id="name0" type="text" maxlength="20" placeholder="Spiller 1" aria-label="Navn på spiller 1" enterkeyhint="next"></label>
+      <label class="name-field" for="name1"><span class="badge suit red" aria-hidden="true">&#9829;&#xFE0E;</span><input id="name1" type="text" maxlength="20" placeholder="Spiller 2" aria-label="Navn på spiller 2" enterkeyhint="next"></label>
+      <label class="name-field" for="name2"><span class="badge suit red" aria-hidden="true">&#9830;&#xFE0E;</span><input id="name2" type="text" maxlength="20" placeholder="Spiller 3" aria-label="Navn på spiller 3" enterkeyhint="next"></label>
+      <label class="name-field" for="name3"><span class="badge suit black" aria-hidden="true">&#9827;&#xFE0E;</span><input id="name3" type="text" maxlength="20" placeholder="Spiller 4" aria-label="Navn på spiller 4" enterkeyhint="go"></label>
+      <button id="startBtn" class="btn primary" type="submit">Start spil</button>
+    </form>
+  </section>
+
+  <!-- GAME -->
+  <section id="game" hidden aria-labelledby="roundTitle">
+    <div class="topbar">
+      <button class="back" type="button" data-go="menu"><span aria-hidden="true">&larr;</span> Menu</button>
+      <p class="eyebrow"><span class="suits" aria-hidden="true"><span class="suit black">&#9824;&#xFE0E;</span><span class="suit red">&#9829;&#xFE0E;</span><span class="suit red">&#9830;&#xFE0E;</span><span class="suit black">&#9827;&#xFE0E;</span></span>Amerikano</p>
+    </div>
+    <h1 id="roundTitle" class="screen-title">Runde <span id="roundNo">1</span></h1>
+
+    <div id="players" class="players"></div>
+    <p class="hint">Hold + eller &minus; nede for at tælle hurtigt. Tryk på tallet i midten for at skifte mellem plus og minus.</p>
+
+    <div class="actions">
+      <button id="saveRound" class="btn primary" type="button" disabled>Gem runde 1</button>
+      <button id="clearRound" class="btn ghost" type="button" disabled>Nulstil</button>
+    </div>
+    <p id="status" class="status" aria-live="polite"></p>
+
+    <div class="block">
+      <div class="block-head">
+        <h2>Runder</h2>
+        <button id="undo" class="link" type="button" disabled>Fortryd sidste runde</button>
+      </div>
+      <div class="table-wrap"><table id="logTable"></table></div>
+    </div>
+
+    <div class="finish">
+      <button id="finishBtn" class="btn outline" type="button">Afslut og tæl sammen</button>
+      <div id="finishConfirm" class="confirm" hidden>
+        <p id="confirmText"></p>
+        <div class="row">
+          <button id="finishYes" class="btn primary" type="button">Tæl sammen</button>
+          <button id="finishSkip" class="btn ghost" type="button" hidden>Tæl sammen uden runden</button>
+          <button id="finishNo" class="btn ghost" type="button">Spil videre</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RESULT -->
+  <section id="result" hidden aria-labelledby="winnerLine">
+    <div class="topbar"><button id="resultBack" class="back" type="button"><span aria-hidden="true">&larr;</span> <span id="resultBackLabel">Menu</span></button></div>
+    <div>
+      <p class="eyebrow" id="resultMeta"></p>
+      <h1 id="winnerLine" class="screen-title"></h1>
+    </div>
+    <ol id="standings" class="standings"></ol>
+    <p id="resultStat" class="result-stat"></p>
+    <div id="resultFinishActions" class="row">
+      <button id="again" class="btn primary" type="button">Spil igen med samme hold</button>
+      <button id="toMenu" class="btn ghost" type="button">Til menuen</button>
+    </div>
+
+    <div id="chartCard" class="chart-card">
+      <h2>Stillingen undervejs</h2>
+      <div id="legend" class="legend"></div>
+      <div id="chartBox" class="chart-box"></div>
+    </div>
+
+    <div class="block">
+      <h2>Runder</h2>
+      <div class="table-wrap"><table id="resultLog"></table></div>
+    </div>
+
+    <div class="foot-links">
+      <button id="reopen" class="link" type="button">Fortsæt spillet alligevel</button>
+      <button id="deleteGame" class="link danger" type="button">Slet spillet fra statistikken</button>
+    </div>
+    <div id="deleteConfirm" class="confirm" hidden>
+      <p>Slet spillet fra statistikken? Det kan ikke fortrydes.</p>
+      <div class="row">
+        <button id="deleteYes" class="btn danger-btn" type="button">Slet spillet</button>
+        <button id="deleteNo" class="btn ghost" type="button">Annullér</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <section id="stats" hidden aria-labelledby="statsTitle">
+    <div class="topbar"><button class="back" type="button" data-go="menu"><span aria-hidden="true">&larr;</span> Menu</button></div>
+    <h1 id="statsTitle" class="screen-title">Statistik</h1>
+
+    <div id="statsEmpty" class="empty-state" hidden>
+      <p class="es-title">Ingen afsluttede spil endnu</p>
+      <p>Når I trykker &quot;Afslut og tæl sammen&quot; efter et spil, kommer det med her med vindere, point og rekorder.</p>
+    </div>
+
+    <div id="statsBody" class="block" style="gap:24px">
+      <div id="tiles" class="tiles"></div>
+      <div class="block">
+        <h2>Spillere</h2>
+        <div class="table-wrap"><table id="playerTable" class="ptable"></table></div>
+        <p class="hint">Spillere tælles sammen på navn. Ved delt førsteplads får alle med flest point en sejr.</p>
+      </div>
+      <div class="block">
+        <h2>Spil</h2>
+        <ul id="gamesList" class="games"></ul>
+      </div>
+      <div class="foot-links"><button id="resetStats" class="link danger" type="button">Nulstil statistik</button></div>
+      <div id="resetConfirm" class="confirm" hidden>
+        <p id="resetText"></p>
+        <div class="row">
+          <button id="resetYes" class="btn danger-btn" type="button">Slet alle spil</button>
+          <button id="resetNo" class="btn ghost" type="button">Annullér</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+(function(){
+  'use strict';
+  var START = 100, MAX = 13;
+  var SUITS = ['♠︎','♥︎','♦︎','♣︎'];
+  var RED = [false,true,true,false];
+  var KEY = 'amerikano-pointtaeller-v2', OLD_KEY = 'amerikano-pointtaeller-v1';
+  var SCREENS = ['menu','setup','game','result','stats'];
+  function $(id){ return document.getElementById(id); }
+  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+  /* ---------- Data ---------- */
+  function okRow(r){ return Array.isArray(r) && r.length === 4 && r.every(function(v){ return Number.isInteger(v) && Math.abs(v) <= MAX; }); }
+  function okNames(n){ return Array.isArray(n) && n.length === 4 && n.every(function(x){ return typeof x === 'string'; }); }
+  function okGame(g, live){
+    if (!g || typeof g !== 'object') return false;
+    if (!okNames(g.names) || !Array.isArray(g.rounds) || !g.rounds.every(okRow)) return false;
+    if (typeof g.startedAt !== 'number') return false;
+    if (live) return okRow(g.pending);
+    return typeof g.id === 'string' && typeof g.finishedAt === 'number';
+  }
+  function okDb(d){
+    return !!d && typeof d === 'object' && (d.current === null || okGame(d.current, true)) &&
+      okNames(d.draftNames) && Array.isArray(d.history) && d.history.every(function(g){ return okGame(g, false); });
+  }
+  function emptyDb(){ return { current: null, draftNames: ['','','',''], history: [] }; }
+  function newGame(names){ return { names: names.slice(), rounds: [], pending: [0,0,0,0], startedAt: Date.now() }; }
+  function load(){
+    try { var raw = localStorage.getItem(KEY); if (raw) { var d = JSON.parse(raw); if (okDb(d)) return d; } } catch (e) {}
+    var db0 = emptyDb();
+    try {
+      var o = JSON.parse(localStorage.getItem(OLD_KEY) || 'null');
+      if (o && okNames(o.names) && Array.isArray(o.rounds) && o.rounds.every(okRow) && okRow(o.pending)) {
+        db0.draftNames = o.names.slice();
+        if (o.phase === 'game') db0.current = { names: o.names.slice(), rounds: o.rounds, pending: o.pending, startedAt: Date.now() };
+        else if (o.phase === 'result' && o.rounds.length) db0.history.push({ id: uid(), names: o.names.slice(), rounds: o.rounds, startedAt: Date.now(), finishedAt: Date.now() });
+      }
+    } catch (e) {}
+    return okDb(db0) ? db0 : emptyDb();
+  }
+  function save(){ try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) {} }
+
+  var db = load();
+  var ui = { screen: 'menu', resultId: null, resultFrom: 'menu' };
+
+  /* ---------- Helpers ---------- */
+  function nm(names, i){ return (names[i] || '').trim() || ('Spiller ' + (i + 1)); }
+  function totalsOf(rounds){
+    var t = [START,START,START,START];
+    rounds.forEach(function(r){ r.forEach(function(v,i){ t[i] += v; }); });
+    return t;
+  }
+  function fmt(n){ return n > 0 ? '+' + n : n < 0 ? '−' + Math.abs(n) : '0'; }
+  function allZero(a){ return a.every(function(v){ return v === 0; }); }
+  function cls(n){ return n > 0 ? 'pos' : n < 0 ? 'neg' : 'zero'; }
+  function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function suitSpan(i){ return '<span class="suit ' + (RED[i] ? 'red' : 'black') + '" aria-hidden="true">' + SUITS[i] + '</span>'; }
+  function plural(n, one, many){ return n + ' ' + (n === 1 ? one : many); }
+  function listJoin(a){ return a.length < 2 ? a.join('') : a.slice(0,-1).join(', ') + ' og ' + a[a.length-1]; }
+  function fmtNum(n){ return n.toLocaleString('da-DK', { maximumFractionDigits: 1 }); }
+  function fmtWhen(ts){
+    var d = new Date(ts), now = new Date(), y = new Date(); y.setDate(now.getDate() - 1);
+    var time = d.toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' });
+    if (d.toDateString() === now.toDateString()) return 'i dag kl. ' + time;
+    if (d.toDateString() === y.toDateString()) return 'i går kl. ' + time;
+    var opts = { day: 'numeric', month: 'short' };
+    if (d.getFullYear() !== now.getFullYear()) opts.year = 'numeric';
+    return d.toLocaleDateString('da-DK', opts) + ' kl. ' + time;
+  }
+  function winnersOf(names, rounds){
+    var t = totalsOf(rounds), max = Math.max.apply(null, t);
+    return { t: t, max: max, idx: [0,1,2,3].filter(function(i){ return t[i] === max; }) };
+  }
+  var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var timers = {};
+  function announce(id, msg){
+    $(id).textContent = msg;
+    clearTimeout(timers[id]);
+    timers[id] = setTimeout(function(){ $(id).textContent = ''; }, 4500);
+  }
+  function archiveCurrent(){
+    var g = db.current, e = null;
+    if (g && g.rounds.length) {
+      e = { id: uid(), names: g.names.slice(), rounds: g.rounds.map(function(r){ return r.slice(); }), startedAt: g.startedAt, finishedAt: Date.now() };
+      db.history.push(e);
+    }
+    db.current = null;
+    save();
+    return e;
+  }
+
+  /* ---------- Navigation ---------- */
+  function go(screen){ ui.screen = screen; render(); window.scrollTo(0,0); }
+  Array.prototype.forEach.call(document.querySelectorAll('[data-go]'), function(b){
+    b.addEventListener('click', function(){ go(b.getAttribute('data-go')); });
+  });
+
+  /* ---------- Menu ---------- */
+  function hideNewConfirm(){ $('newGameBtn').hidden = false; $('newConfirm').hidden = true; }
+  function renderMenu(){
+    var g = db.current;
+    $('continueCard').hidden = !g;
+    $('newGameBtn').className = 'btn ' + (g ? 'ghost' : 'primary');
+    hideNewConfirm();
+    if (g) {
+      var w = winnersOf(g.names, g.rounds);
+      var lead = g.rounds.length > 0 && w.idx.length === 1;
+      $('ccMeta').textContent = 'Runde ' + (g.rounds.length + 1) + ' · startet ' + fmtWhen(g.startedAt);
+      var h = '';
+      for (var i = 0; i < 4; i++) {
+        h += '<span class="cc-p' + (lead && w.t[i] === w.max ? ' lead' : '') + '">' + suitSpan(i) +
+             '<span class="nm">' + esc(nm(g.names, i)) + '</span><span class="cc-t">' + w.t[i] + '</span></span>';
+      }
+      $('ccScores').innerHTML = h;
+    }
+    var H = db.history, r = H.reduce(function(a, x){ return a + x.rounds.length; }, 0);
+    $('statsSummary').textContent = H.length ? plural(H.length, 'afsluttet spil', 'afsluttede spil') + ' · ' + plural(r, 'runde', 'runder') : 'Ingen afsluttede spil endnu';
+  }
+  $('continueCard').addEventListener('click', function(){ if (db.current) go('game'); });
+  $('statsBtn').addEventListener('click', function(){ go('stats'); });
+  $('newGameBtn').addEventListener('click', function(){
+    var g = db.current;
+    if (!g) { go('setup'); return; }
+    var n = g.rounds.length;
+    $('newConfirmText').textContent = n
+      ? 'Der er et spil i gang med ' + plural(n, 'gemt runde', 'gemte runder') + '. Hvad skal der ske med det?'
+      : 'Der er et spil i gang uden gemte runder. Det bliver slettet, når du starter et nyt.';
+    $('newSaveOld').hidden = n === 0;
+    $('newDropOld').textContent = n ? 'Slet spillet' : 'Slet og start nyt';
+    $('newGameBtn').hidden = true; $('newConfirm').hidden = false;
+    (n ? $('newSaveOld') : $('newDropOld')).focus();
+  });
+  $('newSaveOld').addEventListener('click', function(){ archiveCurrent(); go('setup'); });
+  $('newDropOld').addEventListener('click', function(){ db.current = null; save(); go('setup'); });
+  $('newCancel').addEventListener('click', function(){ hideNewConfirm(); $('newGameBtn').focus(); });
+
+  /* ---------- Setup ---------- */
+  function renderSetup(){ for (var i = 0; i < 4; i++) $('name' + i).value = db.draftNames[i] || ''; }
+  $('setupForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var names = [0,1,2,3].map(function(i){ return $('name' + i).value.trim().slice(0,20); });
+    db.draftNames = names.slice();
+    db.current = newGame(names);
+    save(); go('game');
+  });
+  [0,1,2,3].forEach(function(i){
+    $('name' + i).addEventListener('input', function(){ db.draftNames[i] = this.value; save(); });
+    $('name' + i).addEventListener('keydown', function(e){
+      if (e.key === 'Enter' && i < 3) { e.preventDefault(); $('name' + (i + 1)).focus(); }
+    });
+  });
+
+  /* ---------- Game ---------- */
+  function bindHold(btn, i, d){
+    var t1 = null, t2 = null, pressing = false, held = false, fromPointer = false;
+    function stop(){ clearTimeout(t1); clearInterval(t2); t1 = t2 = null; }
+    btn.addEventListener('pointerdown', function(e){
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      fromPointer = true; pressing = true; held = false; stop();
+      t1 = setTimeout(function(){
+        held = true;
+        if (stepBy(i, d)) t2 = setInterval(function(){ if (!stepBy(i, d)) stop(); }, 90);
+      }, 380);
+    });
+    btn.addEventListener('pointerup', function(){ if (pressing && !held) stepBy(i, d); pressing = false; stop(); });
+    btn.addEventListener('pointercancel', function(){ pressing = false; stop(); });
+    btn.addEventListener('pointerleave', function(){ pressing = false; stop(); });
+    btn.addEventListener('click', function(){ if (fromPointer) { fromPointer = false; return; } stepBy(i, d); });
+    btn.addEventListener('keydown', function(){ fromPointer = false; });
+    btn.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+  }
+  function stepBy(i, d){
+    var g = db.current; if (!g) return false;
+    var v = g.pending[i] + d;
+    if (v > MAX || v < -MAX) return false;
+    g.pending[i] = v;
+    commitPending();
+    return true;
+  }
+  function commitPending(){ hideFinishConfirm(); updateGame(); save(); }
+
+  function buildPlayers(){
+    var g = db.current, box = $('players');
+    box.innerHTML = '';
+    for (var i = 0; i < 4; i++) {
+      var n = esc(nm(g.names, i));
+      var row = document.createElement('div');
+      row.className = 'player';
+      row.innerHTML =
+        '<div class="p-info">' +
+          '<div class="p-name">' + suitSpan(i) + '<span class="nm">' + n + '</span><span class="lead-chip" hidden>Fører</span></div>' +
+          '<div class="p-total"><span class="tot">' + START + '</span><span class="proj" hidden></span></div>' +
+        '</div>' +
+        '<div class="stepper" role="group" aria-label="Point til ' + n + ' i denne runde">' +
+          '<button type="button" class="step" id="minus' + i + '" aria-label="Træk 1 point fra ' + n + '">−</button>' +
+          '<button type="button" class="val zero" id="val' + i + '">0</button>' +
+          '<button type="button" class="step" id="plus' + i + '" aria-label="Læg 1 point til ' + n + '">+</button>' +
+        '</div>';
+      box.appendChild(row);
+      bindHold(row.querySelector('#minus' + i), i, -1);
+      bindHold(row.querySelector('#plus' + i), i, 1);
+      (function(idx){
+        row.querySelector('#val' + idx).addEventListener('click', function(){
+          var cur = db.current;
+          if (cur && cur.pending[idx] !== 0) { cur.pending[idx] = -cur.pending[idx]; commitPending(); }
+        });
+      })(i);
+    }
+  }
+
+  function updateGame(){
+    var g = db.current; if (!g) return;
+    var w = winnersOf(g.names, g.rounds), t = w.t, nr = g.rounds.length + 1;
+    $('roundNo').textContent = nr;
+    var rows = $('players').children;
+    for (var i = 0; i < 4; i++) {
+      var row = rows[i]; if (!row) continue;
+      var p = g.pending[i];
+      row.querySelector('.tot').textContent = t[i];
+      var proj = row.querySelector('.proj');
+      if (p !== 0) { proj.hidden = false; proj.textContent = '→ ' + (t[i] + p); proj.className = 'proj ' + (p > 0 ? 'up' : 'down'); }
+      else { proj.hidden = true; }
+      row.querySelector('.lead-chip').hidden = !(g.rounds.length > 0 && w.idx.length === 1 && t[i] === w.max);
+      var v = row.querySelector('.val');
+      v.textContent = fmt(p);
+      v.className = 'val ' + cls(p);
+      v.setAttribute('aria-label', nm(g.names, i) + ': ' + fmt(p) + ' point i denne runde. Tryk for at skifte fortegn');
+      row.querySelector('#minus' + i).disabled = p <= -MAX;
+      row.querySelector('#plus' + i).disabled = p >= MAX;
+    }
+    var none = allZero(g.pending);
+    $('saveRound').textContent = 'Gem runde ' + nr;
+    $('saveRound').disabled = none;
+    $('clearRound').disabled = none;
+    $('undo').disabled = g.rounds.length === 0;
+    buildLog(g.names, g.rounds, $('logTable'));
+  }
+
+  function buildLog(names, rounds, tbl){
+    var t = totalsOf(rounds), i;
+    var h = '<thead><tr><th scope="col">Runde</th>';
+    for (i = 0; i < 4; i++) h += '<th scope="col"><span class="th-name">' + suitSpan(i) + '<span>' + esc(nm(names, i)) + '</span></span></th>';
+    h += '</tr></thead><tbody><tr class="start-row"><th scope="row">Start</th>';
+    for (i = 0; i < 4; i++) h += '<td>' + START + '</td>';
+    h += '</tr>';
+    var run = [START,START,START,START];
+    rounds.forEach(function(r, ri){
+      h += '<tr><th scope="row">' + (ri + 1) + '</th>';
+      r.forEach(function(v, j){
+        run[j] += v;
+        h += '<td><span class="cv ' + cls(v) + '">' + fmt(v) + '</span><span class="rt">' + run[j] + '</span></td>';
+      });
+      h += '</tr>';
+    });
+    if (rounds.length === 0) h += '<tr><td colspan="5" class="empty">Gemte runder vises her med point og stilling efter hver runde.</td></tr>';
+    h += '</tbody>';
+    if (rounds.length) h += '<tfoot><tr><th scope="row">Total</th>' + t.map(function(v){ return '<td>' + v + '</td>'; }).join('') + '</tr></tfoot>';
+    tbl.innerHTML = h;
+  }
+
+  $('saveRound').addEventListener('click', function(){
+    var g = db.current; if (!g || allZero(g.pending)) return;
+    g.rounds.push(g.pending.slice());
+    g.pending = [0,0,0,0];
+    save(); hideFinishConfirm(); updateGame();
+    announce('status', 'Runde ' + g.rounds.length + ' er gemt.');
+  });
+  $('clearRound').addEventListener('click', function(){
+    if (!db.current) return;
+    db.current.pending = [0,0,0,0];
+    commitPending();
+  });
+  $('undo').addEventListener('click', function(){
+    var g = db.current; if (!g || !g.rounds.length) return;
+    var n = g.rounds.length;
+    g.pending = g.rounds.pop();
+    save(); hideFinishConfirm(); updateGame();
+    announce('status', 'Runde ' + n + ' er åbnet igen. Ret pointene og gem den igen.');
+    $('roundTitle').scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+  });
+
+  function hideFinishConfirm(){ $('finishBtn').hidden = false; $('finishConfirm').hidden = true; }
+  $('finishBtn').addEventListener('click', function(){
+    var g = db.current; if (!g) return;
+    var pend = !allZero(g.pending), n = g.rounds.length;
+    $('finishBtn').hidden = true; $('finishConfirm').hidden = false;
+    if (pend) {
+      $('confirmText').textContent = 'Runde ' + (n + 1) + ' er ikke gemt endnu. Skal den tælles med?';
+      $('finishYes').textContent = 'Gem runden og tæl sammen';
+      $('finishSkip').textContent = n ? 'Tæl sammen uden den' : 'Afslut uden at gemme';
+      $('finishSkip').hidden = false;
+    } else if (n) {
+      $('confirmText').textContent = 'Afslut spillet efter ' + plural(n, 'runde', 'runder') + ' og tæl sammen? Spillet gemmes i statistikken.';
+      $('finishYes').textContent = 'Tæl sammen';
+      $('finishSkip').hidden = true;
+    } else {
+      $('confirmText').textContent = 'Der er ingen runder endnu, så spillet gemmes ikke i statistikken. Vil du afslutte det?';
+      $('finishYes').textContent = 'Afslut spillet';
+      $('finishSkip').hidden = true;
+    }
+    $('finishYes').focus();
+  });
+  function doFinish(includePending){
+    var g = db.current; if (!g) return;
+    if (includePending && !allZero(g.pending)) g.rounds.push(g.pending.slice());
+    g.pending = [0,0,0,0];
+    if (!g.rounds.length) {
+      db.current = null; save(); go('menu');
+      announce('menuStatus', 'Spillet er afsluttet. Det havde ingen runder og er ikke gemt i statistikken.');
+      return;
+    }
+    var e = archiveCurrent();
+    ui.resultId = e.id; ui.resultFrom = 'finish';
+    go('result');
+  }
+  $('finishYes').addEventListener('click', function(){ doFinish(true); });
+  $('finishSkip').addEventListener('click', function(){ doFinish(false); });
+  $('finishNo').addEventListener('click', function(){ hideFinishConfirm(); $('finishBtn').focus(); });
+
+  /* ---------- Result ---------- */
+  function findGame(id){ for (var i = 0; i < db.history.length; i++) if (db.history[i].id === id) return db.history[i]; return null; }
+  function winnerLine(names, w){
+    if (w.idx.length === 1) return nm(names, w.idx[0]) + ' vinder med ' + w.max + ' point';
+    if (w.idx.length === 4) return 'Uafgjort. Alle har ' + w.max + ' point';
+    return 'Delt sejr til ' + listJoin(w.idx.map(function(i){ return nm(names, i); })) + ' med ' + w.max + ' point';
+  }
+  function renderResult(){
+    var e = findGame(ui.resultId);
+    if (!e) { ui.screen = 'menu'; render(); return; }
+    var w = winnersOf(e.names, e.rounds), t = w.t, n = e.rounds.length;
+    var fromStats = ui.resultFrom === 'stats', fromFinish = ui.resultFrom === 'finish';
+    $('resultBackLabel').textContent = fromStats ? 'Statistik' : 'Menu';
+    $('resultMeta').textContent = 'Slutstilling efter ' + plural(n, 'runde', 'runder') + ' · ' + fmtWhen(e.finishedAt);
+    $('winnerLine').textContent = winnerLine(e.names, w);
+
+    var order = [0,1,2,3].sort(function(a,b){ return (t[b] - t[a]) || (a - b); });
+    var html = '', rank = 0, prev = null;
+    order.forEach(function(i, pos){
+      if (t[i] !== prev) { rank = pos + 1; prev = t[i]; }
+      var diff = t[i] - START;
+      html += '<li class="' + (t[i] === w.max ? 'win' : '') + '">' +
+        '<span class="rank">' + rank + '.</span>' +
+        '<span class="r-name">' + suitSpan(i) + '<span class="nm">' + esc(nm(e.names, i)) + '</span></span>' +
+        '<span class="r-score"><span class="r-tot">' + t[i] + '</span><span class="r-diff">' + (diff === 0 ? '±0' : fmt(diff)) + ' fra start</span></span>' +
+      '</li>';
+    });
+    $('standings').innerHTML = html;
+
+    var best = null;
+    e.rounds.forEach(function(r, ri){ r.forEach(function(v, i){ if (!best || v > best.v) best = { v: v, i: i, ri: ri }; }); });
+    $('resultStat').textContent = best && best.v > 0 ? 'Bedste runde: ' + nm(e.names, best.i) + ' med ' + fmt(best.v) + ' point i runde ' + (best.ri + 1) + '.' : '';
+
+    $('resultFinishActions').hidden = !fromFinish;
+    $('reopen').hidden = !(fromFinish && !db.current && db.history[db.history.length - 1] === e);
+    $('deleteGame').hidden = !fromStats;
+    $('deleteConfirm').hidden = true;
+    buildLog(e.names, e.rounds, $('resultLog'));
+    drawChart(e);
+  }
+  $('resultBack').addEventListener('click', function(){ go(ui.resultFrom === 'stats' ? 'stats' : 'menu'); });
+  $('toMenu').addEventListener('click', function(){ go('menu'); });
+  $('again').addEventListener('click', function(){
+    var e = findGame(ui.resultId); if (!e) { go('menu'); return; }
+    db.current = newGame(e.names); db.draftNames = e.names.slice(); save(); go('game');
+  });
+  $('reopen').addEventListener('click', function(){
+    var e = findGame(ui.resultId); if (!e || db.current) return;
+    db.history = db.history.filter(function(x){ return x !== e; });
+    db.current = { names: e.names.slice(), rounds: e.rounds.map(function(r){ return r.slice(); }), pending: [0,0,0,0], startedAt: e.startedAt };
+    save(); go('game');
+  });
+  $('deleteGame').addEventListener('click', function(){ $('deleteConfirm').hidden = false; $('deleteYes').focus(); });
+  $('deleteNo').addEventListener('click', function(){ $('deleteConfirm').hidden = true; $('deleteGame').focus(); });
+  $('deleteYes').addEventListener('click', function(){
+    db.history = db.history.filter(function(x){ return x.id !== ui.resultId; });
+    save(); go('stats');
+  });
+
+  /* ---------- Chart ---------- */
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  var chartHide = null, chartWidth = 0;
+  function svgEl(tag, attrs, parent){
+    var n = document.createElementNS(SVGNS, tag);
+    for (var k in attrs) n.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(n);
+    return n;
+  }
+  function drawChart(e){
+    var box = $('chartBox'), card = $('chartCard'), N = e.rounds.length;
+    box.innerHTML = ''; chartHide = null;
+    card.hidden = N === 0;
+    if (!N) return;
+
+    var lg = $('legend'); lg.innerHTML = '';
+    for (var li = 0; li < 4; li++) {
+      var it = document.createElement('span'); it.className = 'lg-item';
+      var k = document.createElement('span'); k.className = 'key s' + li; it.appendChild(k);
+      var su = document.createElement('span'); su.className = 'suit ' + (RED[li] ? 'red' : 'black'); su.setAttribute('aria-hidden', 'true'); su.textContent = SUITS[li]; it.appendChild(su);
+      var tn = document.createElement('span'); tn.className = 'nm'; tn.textContent = nm(e.names, li); it.appendChild(tn);
+      lg.appendChild(it);
+    }
+
+    var W = Math.max(240, Math.round(box.clientWidth) || 300), H = 210, m = { l: 36, r: 12, t: 12, b: 26 };
+    chartWidth = W;
+    var series = [0,1,2,3].map(function(i){ var s = START, run = [s]; e.rounds.forEach(function(r){ s += r[i]; run.push(s); }); return run; });
+    var all = [].concat.apply([], series), lo = Math.min.apply(null, all), hi = Math.max.apply(null, all);
+    var span = Math.max(hi - lo, 4), steps = [1,2,5,10,20,25,50,100,200], step = 200, s;
+    for (s = 0; s < steps.length; s++) { if (span / steps[s] <= 5) { step = steps[s]; break; } }
+    var y0 = Math.floor(lo / step) * step, y1 = Math.ceil(hi / step) * step;
+    if (y1 === y0) y1 = y0 + step;
+    var pw = W - m.l - m.r, ph = H - m.t - m.b;
+    function X(i){ return m.l + i / N * pw; }
+    function Y(v){ return m.t + (1 - (v - y0) / (y1 - y0)) * ph; }
+
+    var svg = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H, 'class': 'chart', role: 'img', tabindex: '0',
+      'aria-label': 'Graf over stillingen efter hver runde. Brug piletasterne for at se pointene runde for runde.' });
+    var grid = svgEl('g', {}, svg), v, tx;
+    for (v = y0; v <= y1; v += step) {
+      svgEl('line', { x1: m.l, x2: W - m.r, y1: Y(v), y2: Y(v), 'class': v === START ? 'gl base' : 'gl' }, grid);
+      tx = svgEl('text', { x: m.l - 8, y: Y(v) + 4, 'text-anchor': 'end', 'class': 'tick' }, grid);
+      tx.textContent = v;
+    }
+    var kSteps = [1,2,5,10,20,50,100], kx = 100;
+    for (s = 0; s < kSteps.length; s++) { if (pw / N * kSteps[s] >= 24) { kx = kSteps[s]; break; } }
+    for (var xi = 0; xi <= N; xi += kx) {
+      tx = svgEl('text', { x: X(xi), y: H - 6, 'text-anchor': xi === 0 ? 'start' : 'middle', 'class': 'tick' }, grid);
+      tx.textContent = xi;
+    }
+    for (var si = 0; si < 4; si++) {
+      var d = series[si].map(function(val, j){ return (j ? 'L' : 'M') + X(j).toFixed(1) + ' ' + Y(val).toFixed(1); }).join('');
+      svgEl('path', { d: d, 'class': 'ln s' + si }, svg);
+    }
+    for (si = 0; si < 4; si++) svgEl('circle', { cx: X(N), cy: Y(series[si][N]), r: 4, 'class': 'dot s' + si }, svg);
+
+    var cross = svgEl('g', { visibility: 'hidden' }, svg);
+    var cl = svgEl('line', { y1: m.t, y2: H - m.b, 'class': 'cl' }, cross);
+    var cdots = [0,1,2,3].map(function(i){ return svgEl('circle', { r: 4.5, 'class': 'dot s' + i }, cross); });
+    var hit = svgEl('rect', { x: m.l - 12, y: 0, width: pw + 24, height: H, fill: 'transparent' }, svg);
+    box.appendChild(svg);
+    var tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; box.appendChild(tip);
+
+    var cur = -1;
+    function show(j){
+      cur = j;
+      var x = X(j);
+      cross.setAttribute('visibility', 'visible');
+      cl.setAttribute('x1', x); cl.setAttribute('x2', x);
+      cdots.forEach(function(c, i){ c.setAttribute('cx', x); c.setAttribute('cy', Y(series[i][j])); });
+      tip.innerHTML = '';
+      var hd = document.createElement('div'); hd.className = 'tip-h'; hd.textContent = j === 0 ? 'Start' : 'Efter runde ' + j; tip.appendChild(hd);
+      [0,1,2,3].sort(function(a,b){ return (series[b][j] - series[a][j]) || (a - b); }).forEach(function(i){
+        var row = document.createElement('div'); row.className = 'tip-r';
+        var key = document.createElement('span'); key.className = 'key s' + i;
+        var val = document.createElement('strong'); val.textContent = series[i][j];
+        var name = document.createElement('span'); name.className = 'tip-n'; name.textContent = nm(e.names, i);
+        var dl = document.createElement('span'); dl.className = 'tip-d'; dl.textContent = j ? fmt(e.rounds[j-1][i]) : '';
+        row.appendChild(key); row.appendChild(val); row.appendChild(name); row.appendChild(dl);
+        tip.appendChild(row);
+      });
+      tip.hidden = false;
+      var bw = box.clientWidth, px = x * (bw / W), tw = tip.offsetWidth, left = px + 12;
+      if (left + tw > bw - 2) left = px - 12 - tw;
+      if (left < 0) left = Math.max(0, Math.min(bw - tw, px - tw / 2));
+      tip.style.left = left + 'px';
+    }
+    function hide(){ cur = -1; cross.setAttribute('visibility', 'hidden'); tip.hidden = true; }
+    function idxFrom(ev){
+      var r = svg.getBoundingClientRect(), vx = (ev.clientX - r.left) * (W / r.width);
+      return Math.max(0, Math.min(N, Math.round((vx - m.l) / pw * N)));
+    }
+    hit.addEventListener('pointermove', function(ev){ show(idxFrom(ev)); });
+    hit.addEventListener('pointerdown', function(ev){ show(idxFrom(ev)); });
+    hit.addEventListener('pointerleave', function(ev){ if (ev.pointerType === 'mouse') hide(); });
+    svg.addEventListener('keydown', function(ev){
+      if (ev.key === 'ArrowRight' || ev.key === 'ArrowLeft') {
+        ev.preventDefault();
+        var j = cur < 0 ? N : cur + (ev.key === 'ArrowRight' ? 1 : -1);
+        show(Math.max(0, Math.min(N, j)));
+      } else if (ev.key === 'Escape') hide();
+    });
+    svg.addEventListener('focus', function(){ if (cur < 0) show(N); });
+    svg.addEventListener('blur', hide);
+    chartHide = hide;
+  }
+  document.addEventListener('pointerdown', function(ev){
+    if (chartHide && !$('chartBox').contains(ev.target)) chartHide();
+  });
+  var resizeTimer = null;
+  window.addEventListener('resize', function(){
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function(){
+      if (ui.screen !== 'result') return;
+      var e = findGame(ui.resultId);
+      if (e && Math.round($('chartBox').clientWidth) !== chartWidth) drawChart(e);
+    }, 150);
+  });
+
+  /* ---------- Stats ---------- */
+  function renderStats(){
+    var H = db.history;
+    $('statsEmpty').hidden = H.length > 0;
+    $('statsBody').hidden = H.length === 0;
+    $('resetConfirm').hidden = true;
+    $('resetStats').hidden = false;
+    if (!H.length) return;
+
+    var players = {}, rounds = 0, high = null, bestRound = null;
+    H.forEach(function(g){
+      var w = winnersOf(g.names, g.rounds);
+      rounds += g.rounds.length;
+      for (var i = 0; i < 4; i++) {
+        var n = nm(g.names, i), key = n.toLowerCase();
+        var p = players[key] || (players[key] = { name: n, games: 0, wins: 0, sum: 0, best: -Infinity, bestRound: -Infinity });
+        p.name = n; p.games++; p.sum += w.t[i];
+        if (w.t[i] === w.max) p.wins++;
+        if (w.t[i] > p.best) p.best = w.t[i];
+        if (!high || w.t[i] > high.v) high = { v: w.t[i], name: n };
+        g.rounds.forEach(function(r){
+          if (r[i] > p.bestRound) p.bestRound = r[i];
+          if (!bestRound || r[i] > bestRound.v) bestRound = { v: r[i], name: n };
+        });
+      }
+    });
+
+    var tiles = [
+      { label: 'Spil', value: H.length, sub: 'afsluttede' },
+      { label: 'Runder', value: rounds, sub: 'gns. ' + fmtNum(rounds / H.length) + ' pr. spil' },
+      { label: 'Højeste slutscore', value: high.v, sub: high.name },
+      { label: 'Bedste runde', value: bestRound.v > 0 ? fmt(bestRound.v) : '–', sub: bestRound.v > 0 ? bestRound.name : 'Ingen plusrunder endnu' }
+    ];
+    $('tiles').innerHTML = tiles.map(function(x){
+      return '<div class="tile"><span class="tile-label">' + esc(x.label) + '</span><span class="tile-value">' + esc(x.value) +
+             '</span><span class="tile-sub">' + esc(x.sub) + '</span></div>';
+    }).join('');
+
+    var list = Object.keys(players).map(function(k){ var p = players[k]; p.rate = p.wins / p.games; p.avg = p.sum / p.games; return p; });
+    list.sort(function(a,b){ return (b.wins - a.wins) || (b.rate - a.rate) || (b.avg - a.avg) || a.name.localeCompare(b.name, 'da'); });
+    var topWins = list.length ? list[0].wins : 0;
+    var h = '<thead><tr><th scope="col">Spiller</th><th scope="col">Spil</th><th scope="col">Sejre</th><th scope="col">Sejr %</th><th scope="col">Gns. slut</th><th scope="col">Bedste</th></tr></thead><tbody>';
+    list.forEach(function(p){
+      h += '<tr><th scope="row">' + esc(p.name) + '</th><td>' + p.games + '</td><td class="' + (p.wins === topWins && topWins > 0 ? 'lead' : '') + '">' + p.wins +
+           '</td><td>' + Math.round(p.rate * 100) + ' %</td><td>' + fmtNum(p.avg) + '</td><td>' + p.best + '</td></tr>';
+    });
+    $('playerTable').innerHTML = h + '</tbody>';
+
+    var gl = $('gamesList'); gl.innerHTML = '';
+    H.slice().reverse().forEach(function(g){
+      var w = winnersOf(g.names, g.rounds);
+      var who = w.idx.length === 1 ? nm(g.names, w.idx[0]) + ' vandt med ' + w.max
+              : w.idx.length === 4 ? 'Uafgjort, alle ' + w.max
+              : 'Delt sejr: ' + listJoin(w.idx.map(function(i){ return nm(g.names, i); })) + ' (' + w.max + ')';
+      var li = document.createElement('li');
+      li.innerHTML = '<button type="button" class="game-row"><span class="gr-main">' +
+        '<span class="gr-when">' + esc(fmtWhen(g.finishedAt)) + ' · ' + plural(g.rounds.length, 'runde', 'runder') + '</span>' +
+        '<span class="gr-win">' + esc(who) + '</span>' +
+        '<span class="gr-names">' + esc([0,1,2,3].map(function(i){ return nm(g.names, i) + ' ' + w.t[i]; }).join(' · ')) + '</span>' +
+        '</span><span class="gr-arrow" aria-hidden="true">&rarr;</span></button>';
+      li.firstChild.addEventListener('click', function(){ ui.resultId = g.id; ui.resultFrom = 'stats'; go('result'); });
+      gl.appendChild(li);
+    });
+  }
+  $('resetStats').addEventListener('click', function(){
+    var n = db.history.length;
+    $('resetText').textContent = 'Slet ' + (n === 1 ? 'det afsluttede spil' : 'alle ' + n + ' afsluttede spil') + ' fra statistikken? Det kan ikke fortrydes. Et spil i gang bliver ikke rørt.';
+    $('resetStats').hidden = true; $('resetConfirm').hidden = false; $('resetNo').focus();
+  });
+  $('resetNo').addEventListener('click', function(){ $('resetConfirm').hidden = true; $('resetStats').hidden = false; $('resetStats').focus(); });
+  $('resetYes').addEventListener('click', function(){ db.history = []; save(); renderStats(); });
+
+  /* ---------- Screen awake during a game ---------- */
+  var wakeLock = null;
+  function keepAwake(){
+    if (ui.screen !== 'game') {
+      if (wakeLock) { try { wakeLock.release(); } catch (e) {} wakeLock = null; }
+      return;
+    }
+    if (wakeLock || !('wakeLock' in navigator) || document.visibilityState !== 'visible') return;
+    try {
+      navigator.wakeLock.request('screen').then(function(l){
+        wakeLock = l;
+        l.addEventListener('release', function(){ wakeLock = null; });
+      }).catch(function(){ wakeLock = null; });
+    } catch (e) { wakeLock = null; }
+  }
+  document.addEventListener('visibilitychange', function(){ if (document.visibilityState === 'visible') keepAwake(); });
+
+  /* ---------- Render ---------- */
+  function render(){
+    if (ui.screen === 'game' && !db.current) ui.screen = 'menu';
+    if (ui.screen === 'result' && !findGame(ui.resultId)) ui.screen = 'menu';
+    if (SCREENS.indexOf(ui.screen) < 0) ui.screen = 'menu';
+    SCREENS.forEach(function(s){ $(s).hidden = s !== ui.screen; });
+    if (ui.screen === 'menu') renderMenu();
+    else if (ui.screen === 'setup') renderSetup();
+    else if (ui.screen === 'game') { buildPlayers(); hideFinishConfirm(); updateGame(); }
+    else if (ui.screen === 'result') renderResult();
+    else if (ui.screen === 'stats') renderStats();
+    keepAwake();
+  }
+
+  var hot = window.claude && window.claude.hot;
+  if (hot && hot.snapshot) { try { hot.snapshot(function(){ return { db: db, ui: ui }; }); } catch (e) {} }
+  function start(data){
+    if (data && okDb(data.db)) db = data.db;
+    if (data && data.ui && typeof data.ui.screen === 'string') ui = data.ui;
+    render();
+  }
+  if (hot && hot.ready) hot.ready(start); else start((hot && hot.data) || {});
+})();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
+}
+</script>
+</body>
+</html>
